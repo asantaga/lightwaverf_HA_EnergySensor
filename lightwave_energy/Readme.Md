@@ -4,11 +4,14 @@ Simple sensor component for Home Assistant which listens for the messages from t
 
 ## Installation Instructions
 
-1. Copy sensor/lightwave_energy.py into your custom_components directory
+1. Copy /lightwave_energy directory into your custom_components directory
 2. Configure configuration.yaml
    ```
    sensor lightwaveEnergy:
      - platform: lightwave_energy
+       scan_interval: 30
    ```
+
+Ensure port 9761/UDP is open for thi integration to work
 
 PR's / Issues welcome!
