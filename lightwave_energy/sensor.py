@@ -5,22 +5,20 @@ https://github.com/asantaga/wiserHomeAssistantPlatform
 Angelo.santagata@gmail.com
 """
 
-import socket
-import logging
 import json
+import logging
+import socket
 import time
-from homeassistant.helpers.entity import Entity
-import voluptuous as vol
+
 import homeassistant.helpers.config_validation as cv
+import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-
-
-
 from homeassistant.const import CONF_SCAN_INTERVAL
+from homeassistant.helpers.entity import Entity
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = "lightwaverf_energy"
+DOMAIN = 'lightwaverf_energy'
 
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
@@ -76,7 +74,7 @@ class LightwaveEnergy(Entity):
            # Convert to JSON
            if data!=None:
                self.lightwaveEnergyData=json.loads(data[2:])
-               self.serial=self.lightwaveEnergyData.get("serial")
+               self.serial=self.lightwaveEnergyData.get('serial')
                self.mac=self.lightwaveEnergyData.get("mac")
                self.currentUsage=self.lightwaveEnergyData.get('cUse')
                self.todayUsage=self.lightwaveEnergyData.get('todUse')
@@ -92,7 +90,7 @@ class LightwaveEnergy(Entity):
 
     @property
     def name(self):
-        if (self.sensorType=="CURRENT_USAGE"):
+        if self.sensorType=='CURRENT_USAGE':
             return "Electricity Current Usage (W)"
         return "Electricity Energy Today Usage (kWh)"
 
@@ -103,13 +101,13 @@ class LightwaveEnergy(Entity):
 
     @property
     def unit_of_measurement(self):
-        if (self.sensorType=="CURRENT_USAGE"):
-            return "W"
-        return "kWh"
+        if self.sensorType=='CURRENT_USAGE':
+            return 'W'
+        return 'kWh'
 
     @property
     def state(self):
-        if (self.sensorType=="CURRENT_USAGE"):
+        if self.sensorType=='CURRENT_USAGE':
           return self.currentUsage
         try:
           return int(self.todayUsage)/1000
