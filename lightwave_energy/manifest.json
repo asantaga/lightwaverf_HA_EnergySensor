@@ -1,0 +1,7 @@
+{
+  "domain": "lightwave_energy",
+  "name": "Lightwave Energy Monitor Platform",
+  "documentation": "https://github.com/asantaga/lightwaverf_HA_EnergySensor",
+  "codeowners": ["@asantaga"],
+  "requirements": [""]
+}
