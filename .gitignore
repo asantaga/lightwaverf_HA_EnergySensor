@@ -4,6 +4,7 @@ wiserapitest.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*.swp
 *$py.class
 
 # C extensions
@@ -27,6 +28,7 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.idea/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

@@ -1,7 +1,7 @@
 {
   "domain": "lightwave_energy",
   "name": "Lightwave Energy Monitor Platform",
-  "documentation": "https://github.com/asantaga/lightwaverf_HA_EnergySensor",
+  "documentation": "https://www.home-assistant.io/components/lightwave_energy"
   "codeowners": ["@asantaga"],
   "requirements": [""]
 }
