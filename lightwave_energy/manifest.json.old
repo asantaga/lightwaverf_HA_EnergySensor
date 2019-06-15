@@ -1,0 +1,7 @@
+{
+  "domain": "lightwave_energy",
+  "name": "Lightwave Energy Monitor Platform",
+  "documentation" : "http://www.somewhere.com"
+  "codeowners": ["@asantaga"],
+  "requirements": []
+}
