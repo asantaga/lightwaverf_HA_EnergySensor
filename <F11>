@@ -1,0 +1,17 @@
+
+_Component to integrate with LightwaveRF Energy Sensor
+
+## Example YAML
+``` yaml
+
+   lightwaverf_energy:
+      scan_interval: 30
+```
+
+Key | Type | Required | Description
+-- | -- | -- | --
+`scan_interval` | `number` | `False` | Scan Interval, defaults to 30
+
+
+
+

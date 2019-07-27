@@ -4,15 +4,31 @@ Simple sensor component for Home Assistant which listens for the messages from t
 
 ## Installation Instructions
 
-1. Copy /lightwave_energy directory into your custom_components directory
-2. Configure configuration.yaml
-   ```
-   lightwaverf_energy:
-      scan_interval: 30
-   ```
 
-scan_interval is optional, defaults to every 30 seconds
-Ensure port 9761/UDP is open for thi integration to work
+### Manual Way
+1. clone the repository to a local folder on your computer using git
+``` git clone https://github.com/asantaga/lightwaverf_HA_EnergySensor.git ```
+2. Copy the ```lightwaverf_energy``` directory within custom_components to your custom_components directory in your Hoome Assistant config directory
+e.g.
+``` cp -r custom_components/lightwave_energy <yourConfigDir>/custom_components```
+3. Configure configuration.yaml as below
+4. Ensure port 9761/UDP is open on your linux server. If you are using ufw then something like 
+```ufw enable 9761/udp``` will do the trick
+
+
+
+### HACS (https://custom-components.github.io/hacs/)
+1. Add repository ```https://github.com/asantaga/lightwaverf_HA_EnergySensor``` as a integration and install 
+voila easy
+2. Configure configuration.yaml as below
+3. Ensure port 9761/UDP is open on your linux server. If you are using ufw then something like 
+```ufw enable 9761/udp``` will do the trick
+
+
+
+Scan_interval is optional, defaults to every 30 seconds
+
+***Remember Ensure port 9761/UDP is open for thi integration to work***
 
 PR's / Issues welcome!
 
