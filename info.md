@@ -1,4 +1,3 @@
-
 ## Example YAML
 ``` yaml
    lightwaverf_energy:
