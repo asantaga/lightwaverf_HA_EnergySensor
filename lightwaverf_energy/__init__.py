@@ -15,15 +15,16 @@ DOMAIN = 'lightwaverf_energy'
 DATA_KEY = 'lightwaverf_energy'
 
 PLATFORM_SCHEMA = vol.Schema({
+    vol.Optional(CONF_SCAN_INTERVAL, default=300): cv.positive_int
 
-    vol.Optional(CONF_SCAN_INTERVAL, default=300): cv.time_period,
-    vol.Optional(CONF_MINIMUM, default=-5): vol.All(vol.Coerce(int))
 })
 
 
 def setup(hass, config):
 
     # Store the scan interval in the data storage.
-    hass.data[DATA_KEY] = config[DOMAIN][CONF_SCAN_INTERVAL]
+    hass.data[DATA_KEY] = config[DOMAIN][0][CONF_SCAN_INTERVAL]
+    print("scan interval***********************")
+    print(config[DOMAIN][0][CONF_SCAN_INTERVAL])
     load_platform(hass, 'sensor', DOMAIN, {}, config)
     return True
