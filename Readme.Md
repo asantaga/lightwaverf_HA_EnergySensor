@@ -17,4 +17,5 @@ Ensure port 9761/UDP is open for thi integration to work
 PR's / Issues welcome!
 
 V 1.3 :  Migrated to new component model, breaking changes that yaml is now different
+
 V 1.4 : Added support for HACS
