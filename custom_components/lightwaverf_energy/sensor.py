@@ -16,15 +16,17 @@ from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.helpers.entity import Entity
 
 _LOGGER = logging.getLogger(__name__)
-DATA_KEY = 'lightwaverf_energy'
+DATA_KEY = "lightwaverf_energy"
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
     """Configure the sensor platform for home assistant."""
     scan_interval = hass.data[DATA_KEY]
     _LOGGER.info("scan interval= %s", scan_interval)
-    lightwave_devices = [LightwaveEnergy("CURRENT_USAGE", scan_interval),
-                         LightwaveEnergy("TODAY_USAGE", scan_interval)]
+    lightwave_devices = [
+        LightwaveEnergy("CURRENT_USAGE", scan_interval),
+        LightwaveEnergy("TODAY_USAGE", scan_interval),
+    ]
     add_devices(lightwave_devices)
 
 
@@ -50,22 +52,23 @@ class LightwaveEnergy(Entity):
             _LOGGER.info("waiting for Data from Lightwave Energy Monitor")
             data = None
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.bind(('0.0.0.0', 9761))
+            sock.bind(("0.0.0.0", 9761))
             sock.settimeout(10.0)  # Wait a Max of 10 seconds
             # wait for an energy update
             try:
                 data, _ = sock.recvfrom(1024)  # buffer size is 1024 bytes
                 _LOGGER.info("Data received %s ", data)
             except socket.timeout as ex:
-                _LOGGER.error("No data received from lightwaveRF energy "
-                              "monitor %s", ex)
+                _LOGGER.error(
+                    "No data received from lightwaveRF energy " "monitor %s", ex
+                )
             # Convert to JSON
             if data is not None:
                 self.lightwave_energy_data = json.loads(data[2:])
-                self.serial = self.lightwave_energy_data.get('serial')
+                self.serial = self.lightwave_energy_data.get("serial")
                 self.mac = self.lightwave_energy_data.get("mac")
-                self.current_usage = self.lightwave_energy_data.get('cUse')
-                self.today_usage = self.lightwave_energy_data.get('todUse')
+                self.current_usage = self.lightwave_energy_data.get("cUse")
+                self.today_usage = self.lightwave_energy_data.get("todUse")
                 _LOGGER.debug("Lightwave_Energy skipping update")
             self._updatets = time.time()
         else:
@@ -79,7 +82,7 @@ class LightwaveEnergy(Entity):
     @property
     def name(self):
         """Sensor name."""
-        if self.sensor_type == 'CURRENT_USAGE':
+        if self.sensor_type == "CURRENT_USAGE":
             return "Electricity Current Usage (W)"
         return "Electricity Energy Today Usage (kWh)"
 
@@ -91,19 +94,20 @@ class LightwaveEnergy(Entity):
     @property
     def unit_of_measurement(self):
         """UOM is either W or kWh."""
-        if self.sensor_type == 'CURRENT_USAGE':
-            return 'W'
-        return 'kWh'
+        if self.sensor_type == "CURRENT_USAGE":
+            return "W"
+        return "kWh"
 
     @property
     def state(self):
         """Get current state of sensor."""
-        if self.sensor_type == 'CURRENT_USAGE':
+        if self.sensor_type == "CURRENT_USAGE":
             return self.current_usage
         try:
             return int(self.today_usage) / 1000
         except ValueError:
-            _LOGGER.info("Lightwave_Energy got value error - data not yet "
-                         "#received ")
+            _LOGGER.info(
+                "Lightwave_Energy got value error - data not yet " "#received "
+            )
             # If we get value error its because the data isnt populated yet
             return ""
