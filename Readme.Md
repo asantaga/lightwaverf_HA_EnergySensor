@@ -1,4 +1,4 @@
-# Home Asisstant Sensor for the Lightwave RF Energy Monitor V1.4.2
+# Home Asisstant Sensor for the Lightwave RF Energy Monitor V1.5
 
 Simple sensor component for Home Assistant which listens for the messages from the LightwaveRF Energy hub. This current implementation uses polling method, I may migrate it to a asynchronous approach in the future depending on how it perfroms
 
@@ -35,3 +35,4 @@ PR's / Issues welcome!
 V 1.3 :  Migrated to new component model, breaking changes that yaml is now different
 
 V 1.4 : Added support for HACS
+V 1.5 : Added version number to manifest file
