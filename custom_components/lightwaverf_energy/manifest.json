@@ -4,7 +4,7 @@
   "documentation": "https://www.home-assistant.io/components/lightwaverf_energy",
   "dependencies": [],
   "codeowners": ["@asantaga"],
-   "version": "1.0",
+   "version": "1.4.2",
   "requirements": []
 }
 
