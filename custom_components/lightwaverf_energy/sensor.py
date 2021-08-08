@@ -70,6 +70,7 @@ class LightwaveEnergy(Entity):
                 self.current_usage = self.lightwave_energy_data.get("cUse")
                 self.today_usage = self.lightwave_energy_data.get("todUse")
                 _LOGGER.debug("Lightwave_Energy skipping update")
+            sock.close()
             self._updatets = time.time()
         else:
             _LOGGER.info("Lightwave_Energy skipping update")
