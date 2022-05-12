@@ -24,6 +24,11 @@ voila easy
 3. Ensure port 9761/UDP is open on your linux server. If you are using ufw then something like 
 ```ufw enable 9761/udp``` will do the trick
 
+configuration.yaml 
+```
+lightwaverf_energy:
+  scan_interval: 30
+```
 
 
 Scan_interval is optional, defaults to every 30 seconds
