@@ -53,6 +53,7 @@ class LightwaveEnergy(Entity):
             data = None
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.bind(("0.0.0.0", 9761))
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             sock.settimeout(10.0)  # Wait a Max of 10 seconds
             # wait for an energy update
             try:
