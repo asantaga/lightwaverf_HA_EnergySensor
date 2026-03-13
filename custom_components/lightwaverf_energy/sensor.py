@@ -8,24 +8,89 @@ import json
 import logging
 import socket
 import time
-import homeassistant.helpers.config_validation as cv
-import voluptuous as vol
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import CONF_SCAN_INTERVAL
+from homeassistant.const import CONF_SCAN_INTERVAL, EVENT_HOMEASSISTANT_STOP
 from homeassistant.helpers.entity import Entity
 
 _LOGGER = logging.getLogger(__name__)
 DATA_KEY = "lightwaverf_energy"
+PORT = 9761
+
+
+class LightwaveEnergyHub:
+    """Shared UDP listener and cache for Lightwave energy data."""
+
+    def __init__(self, scan_interval):
+        """Initialize the shared hub."""
+        self.scan_interval = scan_interval
+        self.serial = ""
+        self.mac = ""
+        self.current_usage = ""
+        self.today_usage = ""
+        self.last_update = 0
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.settimeout(10.0)  # Wait a max of 10 seconds
+        self._configure_socket()
+
+    def _configure_socket(self):
+        """Bind the UDP socket once for the whole integration."""
+        for opt_name in ("SO_REUSEADDR", "SO_REUSEPORT"):
+            opt = getattr(socket, opt_name, None)
+            if opt is not None:
+                try:
+                    self.sock.setsockopt(socket.SOL_SOCKET, opt, 1)
+                except OSError as err:
+                    _LOGGER.debug("Unable to set %s on UDP socket: %s", opt_name, err)
+
+        try:
+            self.sock.bind(("0.0.0.0", PORT))
+        except OSError as err:
+            self.sock.close()
+            _LOGGER.error("Unable to bind UDP listener on port %s: %s", PORT, err)
+            raise
+
+    def update(self):
+        """Read the next packet if the scan interval has elapsed."""
+        if (time.time() - self.last_update) < (self.scan_interval - 1):
+            _LOGGER.debug("Lightwave energy update skipped; scan interval not elapsed")
+            return
+
+        _LOGGER.info("Waiting for data from Lightwave energy monitor on UDP %s", PORT)
+        data = None
+        try:
+            data, _ = self.sock.recvfrom(1024)
+            _LOGGER.info("Data received %s", data)
+        except socket.timeout as err:
+            _LOGGER.error("No data received from LightwaveRF energy monitor: %s", err)
+        except OSError as err:
+            _LOGGER.error("Failed reading LightwaveRF energy monitor data: %s", err)
+
+        if data is not None:
+            lightwave_energy_data = json.loads(data[2:])
+            self.serial = lightwave_energy_data.get("serial", "")
+            self.mac = lightwave_energy_data.get("mac", "")
+            self.current_usage = lightwave_energy_data.get("cUse", "")
+            self.today_usage = lightwave_energy_data.get("todUse", "")
+
+        self.last_update = time.time()
+
+    def close(self, _event=None):
+        """Close the UDP listener during shutdown."""
+        if self.sock is None:
+            return
+        self.sock.close()
+        self.sock = None
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
     """Configure the sensor platform for home assistant."""
     scan_interval = hass.data[DATA_KEY]
     _LOGGER.info("scan interval= %s", scan_interval)
+    hub = LightwaveEnergyHub(scan_interval)
+    hass.bus.listen_once(EVENT_HOMEASSISTANT_STOP, hub.close)
     lightwave_devices = [
-        LightwaveEnergy("CURRENT_USAGE", scan_interval),
-        LightwaveEnergy("TODAY_USAGE", scan_interval),
+        LightwaveEnergy("CURRENT_USAGE", hub),
+        LightwaveEnergy("TODAY_USAGE", hub),
     ]
     add_devices(lightwave_devices)
 
@@ -33,48 +98,16 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 class LightwaveEnergy(Entity):
     """Primary class for Lightwave Energy."""
 
-    def __init__(self, sensor_type, scan_interval):
+    def __init__(self, sensor_type, hub):
         """Initialize the sensor."""
-        _LOGGER.info("Lightwave Energy Init , scan interval=%s", scan_interval)
+        _LOGGER.info("Lightwave Energy Init, sensor_type=%s", sensor_type)
         self.sensor_type = sensor_type
-        self.serial = ""
-        self.mac = ""
-        self.current_usage = ""
-        self.today_usage = ""
-        self.lightwave_energy_data = None
-        self.scan_interval = scan_interval
-        self._updatets = time.time()
+        self.hub = hub
 
     def update(self):
         """Update Lightwave State."""
         _LOGGER.info("Lightwave Energy Monitor update")
-        if (time.time() - self._updatets) >= (self.scan_interval - 1):
-            _LOGGER.info("waiting for Data from Lightwave Energy Monitor")
-            data = None
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.bind(("0.0.0.0", 9761))
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-            sock.settimeout(10.0)  # Wait a Max of 10 seconds
-            # wait for an energy update
-            try:
-                data, _ = sock.recvfrom(1024)  # buffer size is 1024 bytes
-                _LOGGER.info("Data received %s ", data)
-            except socket.timeout as ex:
-                _LOGGER.error(
-                    "No data received from lightwaveRF energy " "monitor %s", ex
-                )
-            # Convert to JSON
-            if data is not None:
-                self.lightwave_energy_data = json.loads(data[2:])
-                self.serial = self.lightwave_energy_data.get("serial")
-                self.mac = self.lightwave_energy_data.get("mac")
-                self.current_usage = self.lightwave_energy_data.get("cUse")
-                self.today_usage = self.lightwave_energy_data.get("todUse")
-                _LOGGER.debug("Lightwave_Energy skipping update")
-            sock.close()
-            self._updatets = time.time()
-        else:
-            _LOGGER.info("Lightwave_Energy skipping update")
+        self.hub.update()
 
     @property
     def icon(self):
@@ -104,9 +137,9 @@ class LightwaveEnergy(Entity):
     def state(self):
         """Get current state of sensor."""
         if self.sensor_type == "CURRENT_USAGE":
-            return self.current_usage
+            return self.hub.current_usage
         try:
-            return int(self.today_usage) / 1000
+            return int(self.hub.today_usage) / 1000
         except ValueError:
             _LOGGER.info(
                 "Lightwave_Energy got value error - data not yet " "#received "
