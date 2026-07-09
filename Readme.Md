@@ -42,4 +42,4 @@ V 1.3 :  Migrated to new component model, breaking changes that yaml is now diff
 V 1.4 : Added support for HACS
 V 1.5 : Added version number to manifest file
 V 1.6 : Added PR which adds a socket close, hopefully fixes errors with ports still being open
-v 1.7 :  Getting back into it after a long break, dot release getting things working agian
+v 1.7.1 :  Getting back into it after a long break, dot release getting things working agian
