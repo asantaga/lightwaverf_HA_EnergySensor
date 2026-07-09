@@ -2,7 +2,7 @@
 layout: page
 title: "Lightwave Energy Components"
 description: "Instructions on how to configure the lightwave energy component"
-date: 2019-06-01 22:00
+date: 2026-07-01 22:00
 sidebar: true
 comments: false
 sharing: true
