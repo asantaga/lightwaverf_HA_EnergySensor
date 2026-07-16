@@ -134,6 +134,20 @@ class LightwaveEnergy(Entity):
         return "kWh"
 
     @property
+    def device_class(self):
+        """Return the Home Assistant device class."""
+        if self.sensor_type == "CURRENT_USAGE":
+            return "power"
+        return "energy"
+
+    @property
+    def state_class(self):
+        """Return the Home Assistant state class."""
+        if self.sensor_type == "CURRENT_USAGE":
+            return "measurement"
+        return "total_increasing"
+
+    @property
     def state(self):
         """Get current state of sensor."""
         if self.sensor_type == "CURRENT_USAGE":
@@ -145,4 +159,4 @@ class LightwaveEnergy(Entity):
                 "Lightwave_Energy got value error - data not yet " "#received "
             )
             # If we get value error its because the data isnt populated yet
-            return ""
+            return None
