@@ -166,4 +166,4 @@ class LightwaveEnergy(Entity):
                 "Lightwave_Energy got value error - data not yet " "#received "
             )
             # If we get value error its because the data isnt populated yet
-            return None
+            return ""

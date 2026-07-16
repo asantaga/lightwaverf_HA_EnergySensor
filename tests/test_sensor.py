@@ -53,9 +53,9 @@ class LightwaveEnergyMetadataTest(unittest.TestCase):
         self.assertEqual(sensor.state, "345")
         self.assertEqual(sensor.unique_id, "lightwaverf_energy_current_usage")
 
-    def test_today_usage_is_none_before_the_first_packet(self):
+    def test_today_usage_is_empty_before_the_first_packet(self):
         sensor = sensor_module.LightwaveEnergy(
             "TODAY_USAGE", SimpleNamespace(today_usage="")
         )
 
-        self.assertIsNone(sensor.state)
+        self.assertEqual(sensor.state, "")
