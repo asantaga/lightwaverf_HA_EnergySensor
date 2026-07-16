@@ -104,6 +104,13 @@ class LightwaveEnergy(Entity):
         self.sensor_type = sensor_type
         self.hub = hub
 
+    @property
+    def unique_id(self):
+        """Return the stable Home Assistant entity identifier."""
+        if self.sensor_type == "CURRENT_USAGE":
+            return "lightwaverf_energy_current_usage"
+        return "lightwaverf_energy_today_usage"
+
     def update(self):
         """Update Lightwave State."""
         _LOGGER.info("Lightwave Energy Monitor update")

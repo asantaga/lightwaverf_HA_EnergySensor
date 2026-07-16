@@ -41,6 +41,7 @@ class LightwaveEnergyMetadataTest(unittest.TestCase):
         self.assertEqual(sensor.device_class, "energy")
         self.assertEqual(sensor.state_class, "total_increasing")
         self.assertEqual(sensor.state, 1.25)
+        self.assertEqual(sensor.unique_id, "lightwaverf_energy_today_usage")
 
     def test_current_usage_is_an_instantaneous_power_sensor(self):
         sensor = sensor_module.LightwaveEnergy(
@@ -50,6 +51,7 @@ class LightwaveEnergyMetadataTest(unittest.TestCase):
         self.assertEqual(sensor.device_class, "power")
         self.assertEqual(sensor.state_class, "measurement")
         self.assertEqual(sensor.state, "345")
+        self.assertEqual(sensor.unique_id, "lightwaverf_energy_current_usage")
 
     def test_today_usage_is_none_before_the_first_packet(self):
         sensor = sensor_module.LightwaveEnergy(
