@@ -1,7 +1,7 @@
 """
-Sensor Platform Device for LightwaveRF Electricity Monitor.
+LightwaveRF Electricity Monitor integration for Home Assistant.
 
-https://github.com/asantaga/wiserHomeAssistantPlatform
+https://github.com/asantaga/lightwaverf_HA_EnergySensor
 Angelo.santagata@gmail.com
 """
 
