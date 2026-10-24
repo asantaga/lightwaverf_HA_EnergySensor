@@ -1,4 +1,4 @@
-# Home Asisstant Sensor for the Lightwave RF Energy Monitor V1.8
+# Home Asisstant Sensor for the Lightwave RF Energy Monitor V1.9
 
 Simple sensor component for Home Assistant which listens for the messages from the LightwaveRF Energy hub. This current implementation uses polling method, I may migrate it to a asynchronous approach in the future depending on how it perfroms
 
@@ -44,3 +44,4 @@ V 1.5 : Added version number to manifest file
 V 1.6 : Added PR which adds a socket close, hopefully fixes errors with ports still being open
 v 1.7.1 :  Getting back into it after a long break, dot release getting things working agian
 v1.8 : Working again
+v1.9 : Fixed readings lagging real time (by ~70 min on one install). The monitor broadcasts more often than the sensor polls, so unread UDP packets queued up in the socket buffer and each poll read a stale one. Each update now drains the queue and uses the newest reading.

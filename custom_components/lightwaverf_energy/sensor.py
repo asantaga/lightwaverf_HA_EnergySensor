@@ -1,7 +1,7 @@
 """
 Sensor Platform Device for LightwaveRF Electricity Monitor.
 
-https://github.com/asantaga/wiserHomeAssistantPlatform
+https://github.com/asantaga/lightwaverf_HA_EnergySensor
 Angelo.santagata@gmail.com
 """
 import json
@@ -55,15 +55,38 @@ class LightwaveEnergyHub:
             _LOGGER.debug("Lightwave energy update skipped; scan interval not elapsed")
             return
 
-        _LOGGER.info("Waiting for data from Lightwave energy monitor on UDP %s", PORT)
         data = None
+        # The monitor broadcasts more often than we poll, so packets queue up in
+        # the socket buffer. Drain the backlog and keep only the newest packet,
+        # otherwise readings lag real time by however long the queue is.
+        dropped = 0
+        self.sock.setblocking(False)
         try:
-            data, _ = self.sock.recvfrom(1024)
-            _LOGGER.info("Data received %s", data)
-        except socket.timeout as err:
-            _LOGGER.error("No data received from LightwaveRF energy monitor: %s", err)
+            while True:
+                try:
+                    packet, _ = self.sock.recvfrom(1024)
+                except BlockingIOError:
+                    break
+                if data is not None:
+                    dropped += 1
+                data = packet
         except OSError as err:
-            _LOGGER.error("Failed reading LightwaveRF energy monitor data: %s", err)
+            _LOGGER.error("Failed draining LightwaveRF energy monitor data: %s", err)
+        finally:
+            self.sock.settimeout(10.0)
+        if dropped:
+            _LOGGER.debug("Discarded %s stale Lightwave energy packets", dropped)
+
+        if data is None:
+            _LOGGER.info("Waiting for data from Lightwave energy monitor on UDP %s", PORT)
+            try:
+                data, _ = self.sock.recvfrom(1024)
+            except socket.timeout as err:
+                _LOGGER.error("No data received from LightwaveRF energy monitor: %s", err)
+            except OSError as err:
+                _LOGGER.error("Failed reading LightwaveRF energy monitor data: %s", err)
+        if data is not None:
+            _LOGGER.info("Data received %s", data)
 
         if data is not None:
             lightwave_energy_data = json.loads(data[2:])
