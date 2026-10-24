@@ -1,0 +1,29 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Lightwave Energy Monitor",
+        "description": "Listens for readings that the LightwaveRF energy monitor broadcasts on UDP port 9761. Make sure that port is open on this host.",
+        "data": {
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_bind": "Couldn't listen on UDP port 9761. Check that nothing else on this host is using it."
+    },
+    "abort": {
+      "single_instance_allowed": "Already configured. Only one Lightwave energy monitor listener can run."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Lightwave Energy Monitor",
+        "data": {
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    }
+  }
+}

@@ -2,10 +2,13 @@
   "domain": "lightwaverf_energy",
   "name": "Lightwave Energy Monitor",
   "codeowners": ["@asantaga"],
+  "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/asantaga/lightwaverf_HA_EnergySensor",
+  "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/asantaga/lightwaverf_HA_EnergySensor/issues",
   "requirements": [],
-  "version": "1.10"
+  "single_config_entry": true,
+  "version": "2.0.0"
 }

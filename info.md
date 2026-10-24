@@ -1,20 +1,15 @@
-## Example YAML
-``` yaml
-   lightwaverf_energy:
-      scan_interval: 30
-```
+Home Assistant integration for the LightwaveRF energy monitor. It creates a device with two sensors, current usage (W) and today's usage (kWh), which can both be used in the Energy dashboard.
 
-## Configuration options
+## Set-up
 
-| Key  | Type  | Required  | Desc |
-|:---|:---|:---|:---|
-|  `scan_interval` |  number | False  | Scan Interval, defaults to 30  |
+After installing, restart Home Assistant and add **Lightwave Energy Monitor** under **Settings > Devices & services**. Port 9761/UDP must be open on the Home Assistant host. Existing YAML configuration is imported automatically.
 
-Creates two sensors: current usage (W) and today's usage (kWh). Both can be
-used in Home Assistant's Energy dashboard. Port 9761/UDP must be open.
+| Option | Default | Description |
+|:---|:---|:---|
+| Update interval | 30 | Seconds between readings |
 
 ## Changelog
 
-**1.10** - Sensors are now proper Home Assistant sensors, so they keep long-term statistics and appear in the Energy dashboard. Updates no longer block for 10 seconds when no packet is waiting, packets that aren't meter readings are ignored, and values show as unknown (not blank) before the first reading. `scan_interval` is now validated and defaults to 30 seconds, as documented. Requires Home Assistant 2023.1 or later.
+**2.0.0** - Version 2.0.0 is set up from the UI (Settings > Devices & services) and creates a device with two sensors. Existing YAML is imported automatically, keeping entity IDs and history, and Home Assistant then shows a repair notice asking you to remove the YAML. The sensors are now proper Home Assistant sensors, so they keep long-term statistics and appear in the Energy dashboard. They show as unknown before the first reading and as unavailable if the monitor goes quiet for 5 minutes. The update interval now really sets how often readings are taken, and can be changed under the integration's Configure button. Updates never block waiting for a packet, packets that aren't meter readings are ignored, and the listener locks on to one monitor if neighbours' monitors are also broadcasting. Requires Home Assistant 2024.12 or later.
 
 **1.9** - Fixed readings lagging real time. Unread UDP packets queued up between polls so each update read a stale value; updates now drain the queue and use the newest reading.
