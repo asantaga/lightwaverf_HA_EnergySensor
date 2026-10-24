@@ -9,12 +9,39 @@ import logging
 import socket
 import time
 
-from homeassistant.const import CONF_SCAN_INTERVAL, EVENT_HOMEASSISTANT_STOP
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
+from homeassistant.const import (
+    EVENT_HOMEASSISTANT_STOP,
+    UnitOfEnergy,
+    UnitOfPower,
+)
 
 _LOGGER = logging.getLogger(__name__)
 DATA_KEY = "lightwaverf_energy"
 PORT = 9761
+# Warn (once) if the monitor has been silent for this many seconds.
+NO_DATA_WARNING = 300
+
+
+def parse_packet(datagram):
+    """Return the reading in a "*!{json}" meter packet, or None for anything else.
+
+    The Lightwave Link also broadcasts non-energy messages on this port, so
+    only JSON objects carrying a current usage value are treated as readings.
+    """
+    if not datagram.startswith(b"*!"):
+        return None
+    try:
+        body = json.loads(datagram[2:])
+    except ValueError:
+        return None
+    if not isinstance(body, dict) or "cUse" not in body:
+        return None
+    return body
 
 
 class LightwaveEnergyHub:
@@ -25,11 +52,14 @@ class LightwaveEnergyHub:
         self.scan_interval = scan_interval
         self.serial = ""
         self.mac = ""
-        self.current_usage = ""
-        self.today_usage = ""
+        self.current_usage = None
+        self.today_usage = None
         self.last_update = 0
+        self.last_reading = time.time()
+        self._quiet = False
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.settimeout(10.0)  # Wait a max of 10 seconds
+        # Never block Home Assistant's update thread waiting for a packet.
+        self.sock.setblocking(False)
         self._configure_socket()
 
     def _configure_socket(self):
@@ -50,52 +80,57 @@ class LightwaveEnergyHub:
             raise
 
     def update(self):
-        """Read the next packet if the scan interval has elapsed."""
-        if (time.time() - self.last_update) < (self.scan_interval - 1):
+        """Use the newest queued meter reading if the scan interval has elapsed."""
+        now = time.time()
+        if self.sock is None or (now - self.last_update) < (self.scan_interval - 1):
             _LOGGER.debug("Lightwave energy update skipped; scan interval not elapsed")
             return
+        self.last_update = now
 
-        data = None
         # The monitor broadcasts more often than we poll, so packets queue up in
-        # the socket buffer. Drain the backlog and keep only the newest packet,
+        # the socket buffer. Drain the backlog and keep only the newest reading,
         # otherwise readings lag real time by however long the queue is.
-        dropped = 0
-        self.sock.setblocking(False)
-        try:
-            while True:
-                try:
-                    packet, _ = self.sock.recvfrom(1024)
-                except BlockingIOError:
-                    break
-                if data is not None:
-                    dropped += 1
-                data = packet
-        except OSError as err:
-            _LOGGER.error("Failed draining LightwaveRF energy monitor data: %s", err)
-        finally:
-            self.sock.settimeout(10.0)
-        if dropped:
-            _LOGGER.debug("Discarded %s stale Lightwave energy packets", dropped)
-
-        if data is None:
-            _LOGGER.info("Waiting for data from Lightwave energy monitor on UDP %s", PORT)
+        reading = None
+        received = 0
+        while True:
             try:
-                data, _ = self.sock.recvfrom(1024)
-            except socket.timeout as err:
-                _LOGGER.error("No data received from LightwaveRF energy monitor: %s", err)
+                datagram, _ = self.sock.recvfrom(1024)
+            except BlockingIOError:
+                break
             except OSError as err:
                 _LOGGER.error("Failed reading LightwaveRF energy monitor data: %s", err)
-        if data is not None:
-            _LOGGER.info("Data received %s", data)
+                break
+            received += 1
+            parsed = parse_packet(datagram)
+            if parsed is None:
+                _LOGGER.debug("Ignoring non-meter Lightwave packet %s", datagram)
+                continue
+            reading = parsed
 
-        if data is not None:
-            lightwave_energy_data = json.loads(data[2:])
-            self.serial = lightwave_energy_data.get("serial", "")
-            self.mac = lightwave_energy_data.get("mac", "")
-            self.current_usage = lightwave_energy_data.get("cUse", "")
-            self.today_usage = lightwave_energy_data.get("todUse", "")
+        if reading is None:
+            self._check_quiet(now)
+            return
 
-        self.last_update = time.time()
+        _LOGGER.debug("Lightwave energy reading %s (%s packets read)", reading, received)
+        if self._quiet:
+            _LOGGER.info("Lightwave energy monitor data resumed")
+            self._quiet = False
+        self.last_reading = now
+        self.serial = reading.get("serial", "")
+        self.mac = reading.get("mac", "")
+        self.current_usage = reading.get("cUse")
+        self.today_usage = reading.get("todUse")
+
+    def _check_quiet(self, now):
+        """Warn once when the monitor stops sending readings."""
+        if self._quiet or (now - self.last_reading) < NO_DATA_WARNING:
+            return
+        self._quiet = True
+        _LOGGER.warning(
+            "No data from LightwaveRF energy monitor on UDP %s for over %s seconds",
+            PORT,
+            NO_DATA_WARNING,
+        )
 
     def close(self, _event=None):
         """Close the UDP listener during shutdown."""
@@ -108,7 +143,7 @@ class LightwaveEnergyHub:
 def setup_platform(hass, config, add_devices, discovery_info=None):
     """Configure the sensor platform for home assistant."""
     scan_interval = hass.data[DATA_KEY]
-    _LOGGER.info("scan interval= %s", scan_interval)
+    _LOGGER.debug("scan interval= %s", scan_interval)
     hub = LightwaveEnergyHub(scan_interval)
     hass.bus.listen_once(EVENT_HOMEASSISTANT_STOP, hub.close)
     lightwave_devices = [
@@ -118,12 +153,21 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     add_devices(lightwave_devices)
 
 
-class LightwaveEnergy(Entity):
+def _as_number(value):
+    """Convert a packet value to a number, or None if it isn't one."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return int(number) if number.is_integer() else number
+
+
+class LightwaveEnergy(SensorEntity):
     """Primary class for Lightwave Energy."""
 
     def __init__(self, sensor_type, hub):
         """Initialize the sensor."""
-        _LOGGER.info("Lightwave Energy Init, sensor_type=%s", sensor_type)
+        _LOGGER.debug("Lightwave Energy Init, sensor_type=%s", sensor_type)
         self.sensor_type = sensor_type
         self.hub = hub
 
@@ -136,7 +180,6 @@ class LightwaveEnergy(Entity):
 
     def update(self):
         """Update Lightwave State."""
-        _LOGGER.info("Lightwave Energy Monitor update")
         self.hub.update()
 
     @property
@@ -157,36 +200,36 @@ class LightwaveEnergy(Entity):
         return True
 
     @property
-    def unit_of_measurement(self):
-        """UOM is either W or kWh."""
-        if self.sensor_type == "CURRENT_USAGE":
-            return "W"
-        return "kWh"
-
-    @property
     def device_class(self):
         """Return the Home Assistant device class."""
         if self.sensor_type == "CURRENT_USAGE":
-            return "power"
-        return "energy"
+            return SensorDeviceClass.POWER
+        return SensorDeviceClass.ENERGY
 
     @property
     def state_class(self):
-        """Return the Home Assistant state class."""
+        """Return the Home Assistant state class.
+
+        Today's usage resets at midnight; total_increasing treats that drop as
+        the start of a new cycle rather than negative consumption.
+        """
         if self.sensor_type == "CURRENT_USAGE":
-            return "measurement"
-        return "total_increasing"
+            return SensorStateClass.MEASUREMENT
+        return SensorStateClass.TOTAL_INCREASING
 
     @property
-    def state(self):
-        """Get current state of sensor."""
+    def native_unit_of_measurement(self):
+        """UOM is either W or kWh."""
         if self.sensor_type == "CURRENT_USAGE":
-            return self.hub.current_usage
-        try:
-            return int(self.hub.today_usage) / 1000
-        except ValueError:
-            _LOGGER.info(
-                "Lightwave_Energy got value error - data not yet " "#received "
-            )
-            # If we get value error its because the data isnt populated yet
-            return ""
+            return UnitOfPower.WATT
+        return UnitOfEnergy.KILO_WATT_HOUR
+
+    @property
+    def native_value(self):
+        """Return the reading, or None (unknown) before the first packet."""
+        if self.sensor_type == "CURRENT_USAGE":
+            return _as_number(self.hub.current_usage)
+        watt_hours = _as_number(self.hub.today_usage)
+        if watt_hours is None:
+            return None
+        return watt_hours / 1000

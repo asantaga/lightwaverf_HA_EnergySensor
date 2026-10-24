@@ -9,7 +9,7 @@ dashboard without changing their UDP data collection or entity names.
 
 `LightwaveEnergy` will inherit from Home Assistant's `SensorEntity` rather
 than the generic `Entity`. This exposes `device_class`, `state_class`, and
-`unit_of_measurement` as sensor state attributes, which lets Home Assistant
+`native_unit_of_measurement` as sensor state attributes, which lets Home Assistant
 create statistics and include the entities in the Energy dashboard picker.
 
 The current-usage entity remains a power measurement in watts:
@@ -22,10 +22,13 @@ The today-usage entity is a daily kWh total that resets at the start of each
 day. It will be declared as:
 
 - `device_class`: `energy`
-- `state_class`: `total`
+- `state_class`: `total_increasing`
 - `unit_of_measurement`: `kWh`
 
-`total` is used rather than `total_increasing` because this source can reset.
+`total_increasing` is used rather than `total`: Home Assistant treats a drop
+in a `total_increasing` value as the start of a new cycle, which matches the
+midnight reset. `total` without `last_reset` would record the drop as negative
+consumption.
 
 ## Tests
 

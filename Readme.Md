@@ -1,6 +1,6 @@
-# Home Asisstant Sensor for the Lightwave RF Energy Monitor V1.9
+# Home Assistant Sensor for the Lightwave RF Energy Monitor V1.10
 
-Simple sensor component for Home Assistant which listens for the messages from the LightwaveRF Energy hub. This current implementation uses polling method, I may migrate it to a asynchronous approach in the future depending on how it perfroms
+Simple sensor component for Home Assistant which listens for the messages from the LightwaveRF Energy hub. It creates two sensors, current usage (W) and today's usage (kWh), which can both be added to Home Assistant's Energy dashboard. Each poll reads the newest packet the monitor has broadcast and never blocks waiting for one.
 
 ## Installation Instructions
 
@@ -8,12 +8,12 @@ Simple sensor component for Home Assistant which listens for the messages from t
 ### Manual Way
 1. clone the repository to a local folder on your computer using git
 ``` git clone https://github.com/asantaga/lightwaverf_HA_EnergySensor.git ```
-2. Copy the ```lightwaverf_energy``` directory within custom_components to your custom_components directory in your Hoome Assistant config directory
+2. Copy the ```lightwaverf_energy``` directory within custom_components to your custom_components directory in your Home Assistant config directory
 e.g.
-``` cp -r custom_components/lightwave_energy <yourConfigDir>/custom_components```
+``` cp -r custom_components/lightwaverf_energy <yourConfigDir>/custom_components```
 3. Configure configuration.yaml as below
 4. Ensure port 9761/UDP is open on your linux server. If you are using ufw then something like 
-```ufw enable 9761/udp``` will do the trick
+```ufw allow 9761/udp``` will do the trick
 
 
 
@@ -22,7 +22,7 @@ e.g.
 voila easy
 2. Configure configuration.yaml as below
 3. Ensure port 9761/UDP is open on your linux server. If you are using ufw then something like 
-```ufw enable 9761/udp``` will do the trick
+```ufw allow 9761/udp``` will do the trick
 
 configuration.yaml 
 ```
@@ -33,7 +33,7 @@ lightwaverf_energy:
 
 Scan_interval is optional, defaults to every 30 seconds
 
-***Remember Ensure port 9761/UDP is open for thi integration to work***
+***Remember Ensure port 9761/UDP is open for this integration to work***
 
 PR's / Issues welcome!
 
@@ -45,3 +45,4 @@ V 1.6 : Added PR which adds a socket close, hopefully fixes errors with ports st
 v 1.7.1 :  Getting back into it after a long break, dot release getting things working agian
 v1.8 : Working again
 v1.9 : Fixed readings lagging real time (by ~70 min on one install). The monitor broadcasts more often than the sensor polls, so unread UDP packets queued up in the socket buffer and each poll read a stale one. Each update now drains the queue and uses the newest reading.
+v1.10 : Sensors are now proper Home Assistant sensors, so they keep long-term statistics and appear in the Energy dashboard. Updates no longer block for 10 seconds when no packet is waiting, packets that aren't meter readings are ignored, and values show as unknown (not blank) before the first reading. scan_interval is validated and defaults to 30 seconds. Requires Home Assistant 2023.1 or later.

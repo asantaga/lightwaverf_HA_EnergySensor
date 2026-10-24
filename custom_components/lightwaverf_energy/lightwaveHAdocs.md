@@ -26,9 +26,8 @@ For this component to work you will need to make sure port 9761 (UDP) is open on
 ```yaml
 # Example configuration.yaml entry
 
-sensor lightwave_energy:
-  - platform: lightwave_energy
-    scan_interval: 30
+lightwaverf_energy:
+  scan_interval: 30
 
 ```
 
@@ -38,5 +37,5 @@ sensor lightwave_energy:
     description: The update interval in seconds
     required: false
     type: integer
-    default: 60
+    default: 30
 {% endconfiguration %}

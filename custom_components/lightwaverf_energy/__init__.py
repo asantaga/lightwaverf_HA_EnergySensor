@@ -12,19 +12,38 @@ from homeassistant.helpers.discovery import load_platform
 
 DOMAIN = "lightwaverf_energy"
 DATA_KEY = "lightwaverf_energy"
+DEFAULT_SCAN_INTERVAL = 30
 
-PLATFORM_SCHEMA = vol.Schema(
-    {vol.Optional(CONF_SCAN_INTERVAL, default=300): cv.positive_int}
+
+def _single_entry(value):
+    """Accept an empty key or a one-item list as well as a mapping."""
+    if value is None:
+        return {}
+    if isinstance(value, list):
+        return value[0] if value else {}
+    return value
+
+
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.All(
+            _single_entry,
+            vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
+                    ): cv.positive_int
+                }
+            ),
+        )
+    },
+    extra=vol.ALLOW_EXTRA,
 )
 
 
 def setup(hass, config):
     """Set up the Lightwave energy integration."""
-    domain_config = config.get(DOMAIN, {})
-    if isinstance(domain_config, list):
-        domain_config = domain_config[0] if domain_config else {}
-
     # Store the scan interval in the data storage.
-    hass.data[DATA_KEY] = domain_config.get(CONF_SCAN_INTERVAL, 300)
+    hass.data[DATA_KEY] = config[DOMAIN][CONF_SCAN_INTERVAL]
     load_platform(hass, "sensor", DOMAIN, {}, config)
     return True
