@@ -27,7 +27,8 @@ spec.loader.exec_module(sensor)
 
 def packet(c_use, tod_use=1000):
     """Build a datagram in the monitor's "*!{json}" format."""
-    body = {"trans": 1, "mac": "20:3B:85", "time": 0, "prod": "pwrMtr",
+    body = {"trans": 1, "mac": "20:3B:85", "time": 0, "pkt": "868R",
+            "fn": "meterData", "prod": "pwrMtr",
             "serial": "ABC123", "signal": 0, "type": "energy",
             "cUse": c_use, "todUse": tod_use}
     return b"*!" + json.dumps(body).encode()
@@ -36,8 +37,9 @@ def packet(c_use, tod_use=1000):
 class LightwaveEnergyHubTest(unittest.TestCase):
     def setUp(self):
         # Bind an ephemeral port rather than 9761 so a live install isn't disturbed.
-        self._port = sensor.PORT
-        sensor.PORT = 0
+        # Likewise bind loopback instead of the broadcast address used live.
+        self._port, self._bind_addr = sensor.PORT, sensor.BIND_ADDR
+        sensor.PORT, sensor.BIND_ADDR = 0, "127.0.0.1"
         self.hub = sensor.LightwaveEnergyHub(scan_interval=30)
         self.addr = ("127.0.0.1", self.hub.sock.getsockname()[1])
         self.sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -45,7 +47,7 @@ class LightwaveEnergyHubTest(unittest.TestCase):
     def tearDown(self):
         self.sender.close()
         self.hub.close()
-        sensor.PORT = self._port
+        sensor.PORT, sensor.BIND_ADDR = self._port, self._bind_addr
 
     def test_update_uses_newest_queued_packet(self):
         for c_use in (100, 200, 300, 400, 500):
@@ -72,6 +74,34 @@ class LightwaveEnergyHubTest(unittest.TestCase):
         finally:
             timer.join()
         self.assertEqual(self.hub.current_usage, 750)
+
+    def test_update_ignores_non_meter_packets(self):
+        # Hub ACKs, 433T transmit echoes and status calls share port 9761.
+        self.sender.sendto(packet(600), self.addr)
+        self.sender.sendto(b"9,OK\n", self.addr)
+        self.sender.sendto(b'*!{"trans":2,"pkt":"433T","fn":"off","room":7,"dev":1}',
+                           self.addr)
+
+        self.hub.update()
+
+        self.assertEqual(self.hub.current_usage, 600)
+
+    def test_wait_skips_non_meter_packets(self):
+        def send():
+            self.sender.sendto(b"9,OK\n", self.addr)
+            self.sender.sendto(packet(820), self.addr)
+
+        timer = threading.Timer(0.2, send)
+        timer.start()
+        try:
+            self.hub.update()
+        finally:
+            timer.join()
+        self.assertEqual(self.hub.current_usage, 820)
+        self.assertEqual(self.hub.sock.gettimeout(), 10.0)
+
+    def test_binds_broadcast_address_live(self):
+        self.assertEqual(self._bind_addr, "255.255.255.255")
 
 
 if __name__ == "__main__":

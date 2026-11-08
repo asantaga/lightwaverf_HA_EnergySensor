@@ -15,6 +15,22 @@ from homeassistant.helpers.entity import Entity
 _LOGGER = logging.getLogger(__name__)
 DATA_KEY = "lightwaverf_energy"
 PORT = 9761
+# The hub broadcasts meter data to 255.255.255.255 but sends command ACKs
+# ("<id>,OK") unicast to whoever sent the command. Binding to the broadcast
+# address (not 0.0.0.0) keeps us out of the unicast path, so the core
+# `lightwave` integration sharing port 9761 receives its ACKs instead of us.
+BIND_ADDR = "255.255.255.255"
+
+
+def _parse_meter_packet(packet):
+    """Return the decoded payload if packet is a meterData message, else None."""
+    try:
+        payload = json.loads(packet[2:])
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if not isinstance(payload, dict) or payload.get("fn") != "meterData":
+        return None
+    return payload
 
 
 class LightwaveEnergyHub:
@@ -43,7 +59,7 @@ class LightwaveEnergyHub:
                     _LOGGER.debug("Unable to set %s on UDP socket: %s", opt_name, err)
 
         try:
-            self.sock.bind(("0.0.0.0", PORT))
+            self.sock.bind((BIND_ADDR, PORT))
         except OSError as err:
             self.sock.close()
             _LOGGER.error("Unable to bind UDP listener on port %s: %s", PORT, err)
@@ -67,9 +83,12 @@ class LightwaveEnergyHub:
                     packet, _ = self.sock.recvfrom(1024)
                 except BlockingIOError:
                     break
+                parsed = _parse_meter_packet(packet)
+                if parsed is None:
+                    continue  # hub status / 433T traffic, not meter data
                 if data is not None:
                     dropped += 1
-                data = packet
+                data = parsed
         except OSError as err:
             _LOGGER.error("Failed draining LightwaveRF energy monitor data: %s", err)
         finally:
@@ -79,17 +98,26 @@ class LightwaveEnergyHub:
 
         if data is None:
             _LOGGER.info("Waiting for data from Lightwave energy monitor on UDP %s", PORT)
+            deadline = time.time() + 10.0
             try:
-                data, _ = self.sock.recvfrom(1024)
+                while data is None:
+                    remaining = deadline - time.time()
+                    if remaining <= 0:
+                        raise socket.timeout("timed out")
+                    self.sock.settimeout(remaining)
+                    packet, _ = self.sock.recvfrom(1024)
+                    data = _parse_meter_packet(packet)
             except socket.timeout as err:
                 _LOGGER.error("No data received from LightwaveRF energy monitor: %s", err)
             except OSError as err:
                 _LOGGER.error("Failed reading LightwaveRF energy monitor data: %s", err)
+            finally:
+                self.sock.settimeout(10.0)
         if data is not None:
             _LOGGER.info("Data received %s", data)
 
         if data is not None:
-            lightwave_energy_data = json.loads(data[2:])
+            lightwave_energy_data = data
             self.serial = lightwave_energy_data.get("serial", "")
             self.mac = lightwave_energy_data.get("mac", "")
             self.current_usage = lightwave_energy_data.get("cUse", "")
